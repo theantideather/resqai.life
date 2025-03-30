@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ResQ - Debug Mode</title>
+    <style>
+      body {
+        background-color: #000913;
+        color: #c7af8c;
+        font-family: monospace;
+        margin: 0;
+        padding: 30px;
+      }
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      h1 {
+        margin-bottom: 20px;
+      }
+      .card {
+        background-color: #101520;
+        border: 1px solid rgba(199, 175, 140, 0.3);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+      button {
+        background-color: #c7af8c;
+        color: #000913;
+        border: none;
+        padding: 10px 20px;
+        cursor: pointer;
+        border-radius: 4px;
+        font-family: monospace;
+        margin-right: 10px;
+      }
+      .outline-button {
+        background-color: transparent;
+        color: #c7af8c;
+        border: 1px solid #c7af8c;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>ResQ Debug Mode</h1>
+      
+      <div class="card">
+        <h2>Static Components Test</h2>
+        <p>This page can help test individual components without the full application context.</p>
+        <div id="root-debug"></div>
+      </div>
+      
+      <div class="card">
+        <h2>Troubleshooting Options</h2>
+        <p>Choose one of the following actions:</p>
+        <button onclick="window.location.href = '/'">Try Main Application</button>
+        <button onclick="window.location.reload()" class="outline-button">Reload Debug Mode</button>
+      </div>
+    </div>
+    
+    <script type="module" src="/src/debug.tsx"></script>
+  </body>
+</html> 

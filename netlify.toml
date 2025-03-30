@@ -1,0 +1,25 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Production context: all deploys from the main 
+# branch will inherit these settings
+[context.production]
+  # Specific environment variables for the production context
+  environment = { NODE_ENV = "production" }
+
+# Deploy Preview context: All deploys generated from a pull/merge request
+# will inherit these settings
+[context.deploy-preview]
+  environment = { NODE_ENV = "production" }
+
+# Branch deploy context: All deploys that are not from a pull/merge request 
+# or from the production branch will inherit these settings
+[context.branch-deploy]
+  environment = { NODE_ENV = "production" }
+
+# Set up redirects for single page app
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200 
