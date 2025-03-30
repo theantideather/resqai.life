@@ -1,6 +1,7 @@
 [build]
   command = "npm run build"
   publish = "dist"
+  environment = { NODE_VERSION = "16" }
 
 # Production context: all deploys from the main 
 # branch will inherit these settings
