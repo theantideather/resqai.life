@@ -1,13 +1,14 @@
 [build]
   command = "CI=false npm run build"
   publish = "dist"
-  environment = { NODE_VERSION = "16", CI = "false", NPM_FLAGS = "--no-audit --no-fund" }
 
 # Improve cache performance
 [build.environment]
+  NODE_VERSION = "16"
+  CI = "false"
+  NPM_FLAGS = "--no-audit --no-fund"
   NETLIFY_USE_YARN = "false"
   NETLIFY_BUILD_CACHE_ID = "resq-cache-v1"
-  NPM_FLAGS = "--no-audit --no-fund"
 
 # Production context: all deploys from the main 
 # branch will inherit these settings
