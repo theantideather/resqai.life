@@ -2,7 +2,7 @@
 // The above directive disables TypeScript checking for this file
 // This should be removed and the types should be properly fixed in a production environment
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function SplashCursor({
   // Add whatever props you like for customization
@@ -22,8 +22,29 @@ function SplashCursor({
   TRANSPARENT = true,
 }) {
   const canvasRef = useRef(null);
+  const [webGLSupported, setWebGLSupported] = useState(true);
 
   useEffect(() => {
+    // Check WebGL support first
+    try {
+      const canvas = document.createElement('canvas');
+      const hasWebGL = !!(window.WebGLRenderingContext && 
+        (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+      const hasWebGL2 = !!(window.WebGL2RenderingContext && canvas.getContext('webgl2'));
+      
+      console.log("[SplashCursor] WebGL Support:", { hasWebGL, hasWebGL2 });
+      
+      if (!hasWebGL && !hasWebGL2) {
+        setWebGLSupported(false);
+        console.error("[SplashCursor] WebGL not supported in this browser, disabling effect");
+        return;
+      }
+    } catch (err) {
+      console.error("[SplashCursor] Error checking WebGL support:", err);
+      setWebGLSupported(false);
+      return;
+    }
+
     console.log("[SplashCursor] Component mounted, initializing...");
     const canvas = canvasRef.current;
     if (!canvas) {
@@ -402,7 +423,7 @@ function SplashCursor({
 
       // Return cleanup function
       return () => {
-        console.log("[SplashCursor] Component unmounting, cleaning up resources");
+        console.log("[SplashCursor] Component unmounting, cleaning up...");
         
         // Cancel animation frame
         if (animationFrameId) {
@@ -423,7 +444,8 @@ function SplashCursor({
         }
       };
     } catch (error) {
-      console.error("[SplashCursor] Error in component:", error);
+      console.error("[SplashCursor] Error initializing fluid effect:", error);
+      setWebGLSupported(false);
     }
   }, [
     SIM_RESOLUTION,
@@ -442,9 +464,20 @@ function SplashCursor({
     TRANSPARENT,
   ]);
 
+  // If WebGL is not supported, render nothing
+  if (!webGLSupported) {
+    return null;
+  }
+
   return (
     <div className="fixed top-0 left-0 z-50 pointer-events-none">
-      <canvas ref={canvasRef} id="fluid" className="w-screen h-screen" />
+      <canvas 
+        ref={canvasRef} 
+        id="fluid" 
+        className="w-screen h-screen" 
+        width={window.innerWidth} 
+        height={window.innerHeight}
+      />
     </div>
   );
 }

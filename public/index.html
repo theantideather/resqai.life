@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ResQ - Emergency Medical AI Assistant</title>
+    <script>
+      // Debug WebGL
+      window.addEventListener('load', function() {
+        setTimeout(() => {
+          console.log("WebGL Support Check:", {
+            webgl: !!document.createElement('canvas').getContext('webgl'),
+            webgl2: !!document.createElement('canvas').getContext('webgl2'),
+            canvas: !!document.getElementById('fluid')
+          });
+        }, 2000);
+      });
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html> 

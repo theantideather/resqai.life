@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { SplashCursor } from '../ui/splash-cursor';
 
 interface SplashCursorWrapperProps {
@@ -6,10 +6,24 @@ interface SplashCursorWrapperProps {
 }
 
 export const SplashCursorWrapper: React.FC<SplashCursorWrapperProps> = ({ children }) => {
+  const [hasErrored, setHasErrored] = useState(false);
+
   useEffect(() => {
     console.log('[SplashCursorWrapper] Component mounted');
+    
+    // Add window error listener to catch WebGL errors
+    const handleError = (event: ErrorEvent) => {
+      if (event.message.includes('WebGL') || event.message.includes('INVALID_OPERATION')) {
+        console.error('[SplashCursorWrapper] WebGL error detected:', event.message);
+        setHasErrored(true);
+      }
+    };
+
+    window.addEventListener('error', handleError);
+
     return () => {
       console.log('[SplashCursorWrapper] Component unmounting');
+      window.removeEventListener('error', handleError);
     };
   }, []);
 
@@ -18,6 +32,12 @@ export const SplashCursorWrapper: React.FC<SplashCursorWrapperProps> = ({ childr
   }, [children]);
 
   console.log('[SplashCursorWrapper] Rendering with children:', !!children);
+
+  // If there's an error, just render the children without the SplashCursor
+  if (hasErrored) {
+    console.log('[SplashCursorWrapper] Rendering without SplashCursor due to error');
+    return <>{children}</>;
+  }
 
   return (
     <div className="relative">
