@@ -6,13 +6,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ResQ - Emergency Medical AI Assistant</title>
     <script>
-      // Debug WebGL
+      // Debug WebGL and cursor effects
       window.addEventListener('load', function() {
         setTimeout(() => {
-          console.log("WebGL Support Check:", {
+          console.log("%c[ResQ Debug] WebGL Support Check", "color: #50fa7b; font-weight: bold;", {
             webgl: !!document.createElement('canvas').getContext('webgl'),
             webgl2: !!document.createElement('canvas').getContext('webgl2'),
-            canvas: !!document.getElementById('fluid')
+            canvas: !!document.getElementById('fluid'),
+            sparklesCanvas: !!document.querySelector('canvas.pointer-events-none'),
+            userAgent: navigator.userAgent,
+            isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+            viewport: {
+              width: window.innerWidth,
+              height: window.innerHeight
+            }
+          });
+          
+          // Listen for WebGL context lost/restored events
+          const canvases = document.querySelectorAll('canvas');
+          canvases.forEach(canvas => {
+            canvas.addEventListener('webglcontextlost', function(e) {
+              console.error('WebGL context lost:', e);
+              e.preventDefault();
+            });
+            
+            canvas.addEventListener('webglcontextrestored', function() {
+              console.log('WebGL context restored');
+            });
           });
         }, 2000);
       });

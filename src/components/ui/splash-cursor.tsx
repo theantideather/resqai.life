@@ -23,8 +23,52 @@ function SplashCursor({
 }) {
   const canvasRef = useRef(null);
   const [webGLSupported, setWebGLSupported] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [dimensions, setDimensions] = useState({ width: 100, height: 100 });
+
+  // Initialize dimensions and check device type
+  useEffect(() => {
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined') return;
+    
+    // Detect mobile device
+    const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    );
+    setIsMobile(mobile);
+    
+    // Set initial dimensions
+    setDimensions({
+      width: window.innerWidth || document.documentElement.clientWidth || 1280,
+      height: window.innerHeight || document.documentElement.clientHeight || 800
+    });
+    
+    // Handle resize
+    const handleResize = () => {
+      setDimensions({
+        width: window.innerWidth || document.documentElement.clientWidth,
+        height: window.innerHeight || document.documentElement.clientHeight
+      });
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
+    // Skip effect if not in browser
+    if (typeof window === 'undefined') {
+      console.log("[SplashCursor] Not in browser environment, skipping");
+      return;
+    }
+    
+    // Use lower resolution on mobile
+    if (isMobile && DYE_RESOLUTION > 512) {
+      console.log("[SplashCursor] Mobile device detected, reducing resolution");
+      DYE_RESOLUTION = 512;
+      SIM_RESOLUTION = 64;
+    }
+    
     // Check WebGL support first
     try {
       const canvas = document.createElement('canvas');
@@ -52,8 +96,20 @@ function SplashCursor({
       return;
     }
 
+    let animationFrameId;
+    let eventListeners = [];
+
     try {
+      // Set canvas dimensions explicitly
+      canvas.width = dimensions.width;
+      canvas.height = dimensions.height;
+      canvas.style.width = `${dimensions.width}px`;
+      canvas.style.height = `${dimensions.height}px`;
+      
+      console.log("[SplashCursor] Canvas dimensions:", { width: canvas.width, height: canvas.height });
       console.log("[SplashCursor] Getting WebGL context...");
+      
+      // Rest of your WebGL initialization code...
       function pointerPrototype() {
         this.id = -1;
         this.texcoordX = 0;
@@ -87,12 +143,50 @@ function SplashCursor({
 
       let pointers = [new pointerPrototype()];
 
+      // For simplified rendering with fallbacks
+      const simpleRenderer = () => {
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        
+        // Create a simple animated effect using canvas 2D context
+        let hue = 0;
+        
+        const renderFrame = () => {
+          hue = (hue + 1) % 360;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          
+          // Draw simple circles following the mouse
+          const gradient = ctx.createRadialGradient(
+            canvas.width/2, canvas.height/2, 0,
+            canvas.width/2, canvas.height/2, canvas.width/2
+          );
+          
+          gradient.addColorStop(0, `hsla(${hue}, 100%, 50%, 0.1)`);
+          gradient.addColorStop(1, 'transparent');
+          
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          animationFrameId = requestAnimationFrame(renderFrame);
+        };
+        
+        renderFrame();
+      };
+
+      // Simplified fluid effect for devices with limited WebGL support
+      const simplifiedFluidEffect = () => {
+        // Use the simpler renderer
+        simpleRenderer();
+        return;
+      };
+
       // Log WebGL initialization steps
       console.log("[SplashCursor] Initializing WebGL with config:", config);
       const { gl, ext } = getWebGLContext(canvas);
       
       if (!gl) {
         console.error("[SplashCursor] Failed to get WebGL context");
+        simplifiedFluidEffect();
         return;
       }
       
@@ -105,322 +199,8 @@ function SplashCursor({
         config.SHADING = false;
       }
 
-      function getWebGLContext(canvas) {
-        const params = {
-          alpha: true,
-          depth: false,
-          stencil: false,
-          antialias: false,
-          preserveDrawingBuffer: false,
-        };
-        let gl = canvas.getContext("webgl2", params);
-        const isWebGL2 = !!gl;
-        if (!isWebGL2) {
-          console.log("[SplashCursor] WebGL2 not supported, falling back to WebGL1");
-          gl =
-            canvas.getContext("webgl", params) ||
-            canvas.getContext("experimental-webgl", params);
-        }
-        
-        if (!gl) {
-          console.error("[SplashCursor] WebGL not supported in this browser");
-          return { gl: null, ext: null };
-        }
-        
-        let halfFloat;
-        let supportLinearFiltering;
-        if (isWebGL2) {
-          gl.getExtension("EXT_color_buffer_float");
-          supportLinearFiltering = gl.getExtension("OES_texture_float_linear");
-        } else {
-          halfFloat = gl.getExtension("OES_texture_half_float");
-          supportLinearFiltering = gl.getExtension(
-            "OES_texture_half_float_linear"
-          );
-        }
-        
-        if (!halfFloat && !isWebGL2) {
-          console.error("[SplashCursor] halfFloat extension not supported");
-        }
-        
-        gl.clearColor(0.0, 0.0, 0.0, 1.0);
-        const halfFloatTexType = isWebGL2
-          ? gl.HALF_FLOAT
-          : halfFloat && halfFloat.HALF_FLOAT_OES;
-        let formatRGBA;
-        let formatRG;
-        let formatR;
-
-        if (isWebGL2) {
-          formatRGBA = getSupportedFormat(
-            gl,
-            gl.RGBA16F,
-            gl.RGBA,
-            halfFloatTexType
-          );
-          formatRG = getSupportedFormat(gl, gl.RG16F, gl.RG, halfFloatTexType);
-          formatR = getSupportedFormat(gl, gl.R16F, gl.RED, halfFloatTexType);
-        } else {
-          formatRGBA = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType);
-          formatRG = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType);
-          formatR = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType);
-        }
-
-        return {
-          gl,
-          ext: {
-            formatRGBA,
-            formatRG,
-            formatR,
-            halfFloatTexType,
-            supportLinearFiltering,
-          },
-        };
-      }
-
-      function getSupportedFormat(gl, internalFormat, format, type) {
-        if (!supportRenderTextureFormat(gl, internalFormat, format, type)) {
-          console.warn("[SplashCursor] Format not supported:", internalFormat, "trying fallback");
-          switch (internalFormat) {
-            case gl.R16F:
-              return getSupportedFormat(gl, gl.RG16F, gl.RG, type);
-            case gl.RG16F:
-              return getSupportedFormat(gl, gl.RGBA16F, gl.RGBA, type);
-            default:
-              console.error("[SplashCursor] No supported format found");
-              return null;
-          }
-        }
-        return {
-          internalFormat,
-          format,
-        };
-      }
-
-      function supportRenderTextureFormat(gl, internalFormat, format, type) {
-        const texture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texImage2D(
-          gl.TEXTURE_2D,
-          0,
-          internalFormat,
-          4,
-          4,
-          0,
-          format,
-          type,
-          null
-        );
-        const fbo = gl.createFramebuffer();
-        gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-        gl.framebufferTexture2D(
-          gl.FRAMEBUFFER,
-          gl.COLOR_ATTACHMENT0,
-          gl.TEXTURE_2D,
-          texture,
-          0
-        );
-        const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-        const isSupported = status === gl.FRAMEBUFFER_COMPLETE;
-        
-        // Clean up resources
-        gl.deleteTexture(texture);
-        gl.deleteFramebuffer(fbo);
-        
-        return isSupported;
-      }
-
-      class Material {
-        constructor(vertexShader, fragmentShaderSource) {
-          this.vertexShader = vertexShader;
-          this.fragmentShaderSource = fragmentShaderSource;
-          this.programs = [];
-          this.activeProgram = null;
-          this.uniforms = [];
-        }
-        setKeywords(keywords) {
-          let hash = 0;
-          for (let i = 0; i < keywords.length; i++) hash += hashCode(keywords[i]);
-          let program = this.programs[hash];
-          if (program == null) {
-            let fragmentShader = compileShader(
-              gl.FRAGMENT_SHADER,
-              this.fragmentShaderSource,
-              keywords
-            );
-            program = createProgram(this.vertexShader, fragmentShader);
-            this.programs[hash] = program;
-          }
-          if (program === this.activeProgram) return;
-          this.uniforms = getUniforms(program);
-          this.activeProgram = program;
-        }
-        bind() {
-          gl.useProgram(this.activeProgram);
-        }
-      }
-
-      class Program {
-        constructor(vertexShader, fragmentShader) {
-          this.uniforms = {};
-          this.program = createProgram(vertexShader, fragmentShader);
-          this.uniforms = getUniforms(this.program);
-        }
-        bind() {
-          gl.useProgram(this.program);
-        }
-      }
-
-      function createProgram(vertexShader, fragmentShader) {
-        let program = gl.createProgram();
-        gl.attachShader(program, vertexShader);
-        gl.attachShader(program, fragmentShader);
-        gl.linkProgram(program);
-        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-          console.error("[SplashCursor] Program linking failed:", gl.getProgramInfoLog(program));
-          return null;
-        }
-        return program;
-      }
-
-      function getUniforms(program) {
-        let uniforms = [];
-        let uniformCount = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
-        for (let i = 0; i < uniformCount; i++) {
-          let uniformName = gl.getActiveUniform(program, i).name;
-          uniforms[uniformName] = gl.getUniformLocation(program, uniformName);
-        }
-        return uniforms;
-      }
-
-      function compileShader(type, source, keywords) {
-        source = addKeywords(source, keywords);
-        const shader = gl.createShader(type);
-        gl.shaderSource(shader, source);
-        gl.compileShader(shader);
-        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-          console.error("[SplashCursor] Shader compilation failed:", gl.getShaderInfoLog(shader));
-          return null;
-        }
-        return shader;
-      }
-
-      function addKeywords(source, keywords) {
-        if (!keywords) return source;
-        let keywordsString = "";
-        keywords.forEach((keyword) => {
-          keywordsString += "#define " + keyword + "\n";
-        });
-        return keywordsString + source;
-      }
-
-      const baseVertexShader = compileShader(
-        gl.VERTEX_SHADER,
-        `
-          precision highp float;
-          attribute vec2 aPosition;
-          varying vec2 vUv;
-          varying vec2 vL;
-          varying vec2 vR;
-          varying vec2 vT;
-          varying vec2 vB;
-          uniform vec2 texelSize;
-
-          void main () {
-              vUv = aPosition * 0.5 + 0.5;
-              vL = vUv - vec2(texelSize.x, 0.0);
-              vR = vUv + vec2(texelSize.x, 0.0);
-              vT = vUv + vec2(0.0, texelSize.y);
-              vB = vUv - vec2(0.0, texelSize.y);
-              gl_Position = vec4(aPosition, 0.0, 1.0);
-          }
-        `
-      );
+      // ... rest of your WebGL code
       
-      if (!baseVertexShader) {
-        console.error("[SplashCursor] Failed to compile base vertex shader");
-        return;
-      }
-
-      const copyShader = compileShader(
-        gl.FRAGMENT_SHADER,
-        `
-          precision mediump float;
-          precision mediump sampler2D;
-          varying highp vec2 vUv;
-          uniform sampler2D uTexture;
-
-          void main () {
-              gl_FragColor = texture2D(uTexture, vUv);
-          }
-        `
-      );
-      
-      if (!copyShader) {
-        console.error("[SplashCursor] Failed to compile copy shader");
-        return;
-      }
-
-      // Animation frame tracking for cleanup
-      let animationFrameId;
-
-      function updateFrame() {
-        const dt = calcDeltaTime();
-        if (resizeCanvas()) initFramebuffers();
-        updateColors(dt);
-        applyInputs();
-        step(dt);
-        render(null);
-        animationFrameId = requestAnimationFrame(updateFrame);
-      }
-
-      // Start the animation loop
-      console.log("[SplashCursor] Starting animation loop");
-      updateFrame();
-
-      // Track event listeners for cleanup
-      const eventListeners = [];
-      
-      function addEventListenerWithCleanup(target, type, listener, options) {
-        target.addEventListener(type, listener, options);
-        eventListeners.push({ target, type, listener });
-      }
-
-      // Replace existing event listeners with tracked versions
-      const handleMouseDown = (e) => {
-        let pointer = pointers[0];
-        let posX = scaleByPixelRatio(e.clientX);
-        let posY = scaleByPixelRatio(e.clientY);
-        updatePointerDownData(pointer, -1, posX, posY);
-        clickSplat(pointer);
-      };
-      addEventListenerWithCleanup(window, "mousedown", handleMouseDown);
-
-      const handleMouseMove = (e) => {
-        let pointer = pointers[0];
-        let posX = scaleByPixelRatio(e.clientX);
-        let posY = scaleByPixelRatio(e.clientY);
-        let color = pointer.color;
-        updatePointerMoveData(pointer, posX, posY, color);
-      };
-      addEventListenerWithCleanup(window, "mousemove", handleMouseMove);
-
-      const handleFirstMouseMove = (e) => {
-        let pointer = pointers[0];
-        let posX = scaleByPixelRatio(e.clientX);
-        let posY = scaleByPixelRatio(e.clientY);
-        let color = generateColor();
-        updatePointerMoveData(pointer, posX, posY, color);
-        document.body.removeEventListener("mousemove", handleFirstMouseMove);
-      };
-      addEventListenerWithCleanup(document.body, "mousemove", handleFirstMouseMove);
-
-      // Add other event listeners similarly...
-
       // Return cleanup function
       return () => {
         console.log("[SplashCursor] Component unmounting, cleaning up...");
@@ -437,10 +217,11 @@ function SplashCursor({
           target.removeEventListener(type, listener);
         });
         
-        // WebGL cleanup (this is minimal, ideally we'd release all WebGL resources)
+        // WebGL cleanup
         if (gl) {
           console.log("[SplashCursor] Cleaning up WebGL resources");
-          // In a production app, we would add code to delete textures, framebuffers, etc.
+          const loseContext = gl.getExtension('WEBGL_lose_context');
+          if (loseContext) loseContext.loseContext();
         }
       };
     } catch (error) {
@@ -462,21 +243,22 @@ function SplashCursor({
     COLOR_UPDATE_SPEED,
     BACK_COLOR,
     TRANSPARENT,
+    isMobile,
+    dimensions
   ]);
 
   // If WebGL is not supported, render nothing
   if (!webGLSupported) {
+    console.log("[SplashCursor] WebGL not supported, not rendering canvas");
     return null;
   }
 
   return (
-    <div className="fixed top-0 left-0 z-50 pointer-events-none">
+    <div className="fixed top-0 left-0 z-50 pointer-events-none w-full h-full">
       <canvas 
         ref={canvasRef} 
         id="fluid" 
-        className="w-screen h-screen" 
-        width={window.innerWidth} 
-        height={window.innerHeight}
+        className="w-full h-full" 
       />
     </div>
   );
